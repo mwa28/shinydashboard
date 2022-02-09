@@ -11,8 +11,13 @@ sidebar <- dashboardSidebar(sidebarMenu(
     choices = setNames(c(1:12), month.name)
   ),
   selectInput(
+    inputId = "yearCom",
+    label = "Annee de commande",
+    choices = df %>% mutate(year = format(dmy(date_com), "%Y")) %>% select(year) %>% arrange(desc(year)) %>% distinct() %>% pull()
+  ),
+  selectInput(
     inputId = "categorie",
-    label = "Categorie",
-    choices = df %>% select(categorie) %>% distinct()
+    label = "Output Variable",
+    choices = c("Profit", "Quantity", "Ventes", "Utilisateurs")
   )
 ))

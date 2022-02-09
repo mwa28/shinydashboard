@@ -8,11 +8,25 @@ ui <- dashboardPage(header = header,
 
 server <- function(input, output) {
   x <- reactive({
-    df %>% mutate(date_com = round_date(dmy(date_com), unit = "month")) %>% group_by(date_com) %>% arrange(date_com) %>% select(date_com, ventes) %>% summarize(ventes = sum(ventes)) %>% filter(month(as.Date(date_com)) %in% input$dateCom) %>% pull(-2)
+    df %>% mutate(date_com = round_date(dmy(date_com), unit = "month")) %>% group_by(date_com) %>% arrange(date_com) %>% summarize(
+      ventes = case_when(
+        input$categorie == "Profit" ~ sum(profit),
+        input$categorie == "Quantity" ~ sum(qtt),
+        input$categorie == "Ventes" ~ sum(ventes),
+        input$categorie == "Utilisateurs" ~ as.double(n_distinct(nom_client))
+      )
+    ) %>% mutate(year = format(date_com, "%Y")) %>% filter(year == input$yearCom) %>% select(date_com, ventes) %>% pull(-2)
   })
   
   y <- reactive({
-    df %>% mutate(date_com = round_date(dmy(date_com), unit = "month")) %>% group_by(date_com) %>% arrange(date_com) %>% select(date_com, ventes) %>% summarize(ventes = sum(ventes)) %>% filter(month(as.Date(date_com)) %in% input$dateCom) %>% pull(-1)
+    df %>% mutate(date_com = round_date(dmy(date_com), unit = "month")) %>% group_by(date_com) %>% arrange(date_com) %>% summarize(
+      ventes = case_when(
+        input$categorie == "Profit" ~ sum(profit),
+        input$categorie == "Quantity" ~ sum(qtt),
+        input$categorie == "Ventes" ~ sum(ventes),
+        input$categorie == "Utilisateurs" ~ as.double(n_distinct(nom_client))
+      )
+    ) %>% mutate(year = format(date_com, "%Y")) %>% filter(year == input$yearCom) %>% select(date_com, ventes) %>% pull(-1)
   })
   
   xyCoords <- reactive({
@@ -27,21 +41,19 @@ server <- function(input, output) {
       xyCoords <- xyCoords()
       plot_ly(
         xyCoords,
-        x0 = ~ col1,
+        x = ~ col1,
         y = ~ col2,
-        name = "Ventes par période",
         type = 'scatter',
         mode = 'lines'
       ) %>% layout(
         xaxis = list(
           title = "Months",
-          dtick = "M12",
           tickformat = "%b-%Y",
           color  = "#c9d1d9",
           gridcolor = "#c9d1d9"
         ),
         yaxis = list (
-          title = "Ventes in euros",
+          title = paste(input$categorie, "in euros"),
           color  = "#c9d1d9",
           gridcolor = "#c9d1d9"
         ),
@@ -49,55 +61,75 @@ server <- function(input, output) {
         plot_bgcolor = "#161b22"
       )
     })
+  
+  x_cat <- reactive({
+    df %>% mutate(date_com = round_date(dmy(date_com), unit = "month")) %>% group_by(date_com, categorie) %>% arrange(date_com, categorie) %>% summarize(
+      ventes = case_when(
+        input$categorie == "Profit" ~ sum(profit),
+        input$categorie == "Quantity" ~ sum(qtt),
+        input$categorie == "Ventes" ~ sum(ventes),
+        input$categorie == "Utilisateurs" ~ as.double(n_distinct(nom_client))
+      )
+    )  %>% mutate(year = format(date_com, "%Y")) %>% filter(year == input$yearCom, month(as.Date(date_com)) %in% input$dateCom) %>% select(categorie, ventes) %>% pull(-2)
+  })
+  
+  y_cat <- reactive({
+    df %>% mutate(date_com = round_date(dmy(date_com), unit = "month")) %>% group_by(date_com, categorie) %>% arrange(date_com, categorie) %>% summarize(
+      ventes = case_when(
+        input$categorie == "Profit" ~ sum(profit),
+        input$categorie == "Quantity" ~ sum(qtt),
+        input$categorie == "Ventes" ~ sum(ventes),
+        input$categorie == "Utilisateurs" ~ as.double(n_distinct(nom_client))
+      )
+    ) %>% mutate(year = format(date_com, "%Y")) %>% filter(year == input$yearCom, month(as.Date(date_com)) %in% input$dateCom) %>% select(categorie, ventes) %>%
+      pull(-1)
+  })
+  
+  xyCoords_cat <- reactive({
+    x <- x_cat()
+    y <- y_cat()
+    
+    data.frame(col1 = x, col2 = y)
+  })
   
   output$plot2 <-
     renderPlotly({
-      xyCoords <- xyCoords()
+      xyCoords <- xyCoords_cat()
       plot_ly(
         xyCoords,
-        x0 = ~ col1,
-        y = ~ col2,
-        name = "Ventes par période",
-        type = 'scatter',
-        mode = 'lines'
-      ) %>% layout(
-        xaxis = list(
-          title = "Months",
-          dtick = "M12",
-          tickformat = "%b-%Y",
-          color  = "#c9d1d9",
-          gridcolor = "#c9d1d9"
-        ),
-        yaxis = list (
-          title = "Ventes in euros",
-          gridcolor = "#c9d1d9" ,
-          color  = "#c9d1d9"
-        ),
-        paper_bgcolor = "#161b22",
-        plot_bgcolor = "#161b22"
-      )
+        labels = ~ col1,
+        values = ~ col2,
+        type = 'pie'
+      ) %>% layout(paper_bgcolor = "#161b22",
+                   plot_bgcolor = "#161b22")
     })
+  
+  x_bar <- reactive({
+    df %>% mutate(date_com = round_date(dmy(date_com), unit = "month")) %>% group_by(date_com) %>% arrange(date_com) %>% mutate(year = format(date_com, "%Y")) %>% filter(year == input$yearCom, month(as.Date(date_com)) %in% input$dateCom) %>% group_by(categorie, pays_region) %>%  summarize(
+      ventes = case_when(
+        input$categorie == "Profit" ~ sum(profit),
+        input$categorie == "Quantity" ~ sum(qtt),
+        input$categorie == "Ventes" ~ sum(ventes),
+        input$categorie == "Utilisateurs" ~ as.double(n_distinct(nom_client))
+      )
+    )
+  })
+  
   
   output$plot3 <-
     renderPlotly({
-      xyCoords <- xyCoords()
+      xyCoords <- x_bar()
       plot_ly(
         xyCoords,
-        x0 = ~ col1,
-        y = ~ col2,
-        name = "Ventes par période",
-        type = 'scatter',
-        mode = 'lines'
+        x = ~ categorie,
+        y = ~ ventes,
+        color = ~ pays_region,
+        type = "bar"
       ) %>% layout(
-        xaxis = list(
-          title = "Months",
-          dtick = "M12",
-          tickformat = "%b-%Y",
-          color  = "#c9d1d9",
-          gridcolor = "#c9d1d9"
-        ),
+        xaxis = list(color  = "#c9d1d9",
+                     gridcolor = "#c9d1d9"),
         yaxis = list (
-          title = "Ventes in euros",
+          title = paste(input$categorie, "in euros"),
           color  = "#c9d1d9",
           gridcolor = "#c9d1d9"
         ),
@@ -108,33 +140,54 @@ server <- function(input, output) {
   
   output$box1 <- renderValueBox({
     valueBox(
-      df %>% select(nom_client, date_com) %>% filter(month(as.Date(date_com)) %in% input$dateCom) %>% n_distinct(),
-      "Number of new users",
+      format(df %>% select(nom_client, date_com) %>% mutate(date_com = round_date(dmy(date_com), unit = "month")) %>% mutate(year = format(date_com, "%Y")) %>% filter(year == input$yearCom) %>% summarise(count = n_distinct(nom_client)) %>% pull(), big.mark = " "),
+      paste("Total number of users (", round((df %>% mutate(date_com = round_date(dmy(date_com), unit = "month")) %>% mutate(year = format(date_com, "%Y")) %>% group_by(year) %>% filter(year == input$yearCom |
+                                                                                                                                                                                           year == as.character(year(as.Date(input$yearCom , format="%Y")) - 1)) %>% summarize(ventes = n_distinct(nom_client)) %>% ungroup %>%
+                                               mutate(change = 100 *
+                                                        (ventes - lag(ventes)) / lag(ventes)) %>% select(change)
+      )[2, ] %>% pull(), 1),
+      "%)", sep=""),
       icon = icon("user")
     )
   })
   
   output$box2 <- renderValueBox({
     valueBox(
-      df %>% select(nom_client, date_com) %>% filter(month(as.Date(date_com)) %in% input$dateCom) %>% n_distinct(),
-      "Number of new users",
-      icon = icon("user")
+      paste(format(df %>% mutate(date_com = round_date(dmy(date_com), unit = "month")) %>% mutate(year = format(date_com, "%Y")) %>% filter(year == input$yearCom) %>% summarize(ventes = sum(ventes)) %>% pull(), big.mark=" "), "€"),
+      paste("Total Yearly Sales (",
+            round((df %>% mutate(date_com = round_date(dmy(date_com), unit = "month")) %>% mutate(year = format(date_com, "%Y")) %>% group_by(year) %>% filter(year == input$yearCom |
+                                                                                                                                                                 year == as.character(year(as.Date(input$yearCom , format="%Y")) - 1)) %>% summarize(ventes = sum(ventes)) %>% ungroup %>%
+                     mutate(change = 100 *
+                              (ventes - lag(ventes)) / lag(ventes)) %>% select(change)
+            )[2, ] %>% pull(), 1),
+            "%)", sep=""),
+      icon = icon("credit-card")
     )
   })
   
   output$box3 <- renderValueBox({
     valueBox(
-      df %>% select(nom_client, date_com) %>% filter(month(as.Date(date_com)) %in% input$dateCom) %>% n_distinct(),
-      "Number of new users",
-      icon = icon("user")
+      paste(format(df %>% mutate(date_com = round_date(dmy(date_com), unit = "month")) %>% mutate(year = format(date_com, "%Y")) %>% filter(year == input$yearCom) %>% summarize(ventes = sum(profit)) %>% pull(), big.mark= " "), "€"),
+     paste("Total Yearly Profit (" , round((df %>% mutate(date_com = round_date(dmy(date_com), unit = "month")) %>% mutate(year = format(date_com, "%Y")) %>% group_by(year) %>% filter(year == input$yearCom |
+                                                                                                                                                                                        year == as.character(year(as.Date(input$yearCom , format="%Y")) - 1)) %>% summarize(ventes = sum(profit)) %>% ungroup %>%
+                                            mutate(change = 100 *
+                                                     (ventes - lag(ventes)) / lag(ventes)) %>% select(change)
+     )[2, ] %>% pull(), 1),
+     "%)", sep=""),
+      icon = icon("money-bill-alt")
     )
   })
   
   output$box4 <- renderValueBox({
     valueBox(
-      df %>% select(nom_client, date_com) %>% filter(month(as.Date(date_com)) %in% input$dateCom) %>% n_distinct(),
-      "Number of new users",
-      icon = icon("user")
+      format(df %>% mutate(date_com = round_date(dmy(date_com), unit = "month")) %>% mutate(year = format(date_com, "%Y")) %>% filter(year == input$yearCom) %>% summarize(ventes = sum(qtt)) %>% pull(), big.mark =  " "),
+      paste("Total Yearly Quantity Sold (", round((df %>% mutate(date_com = round_date(dmy(date_com), unit = "month")) %>% mutate(year = format(date_com, "%Y")) %>% group_by(year) %>% filter(year == input$yearCom |
+                                                                                                                                                                                               year == as.character(year(as.Date(input$yearCom , format="%Y")) - 1)) %>% summarize(ventes = sum(qtt)) %>% ungroup %>%
+                                                   mutate(change = 100 *
+                                                            (ventes - lag(ventes)) / lag(ventes)) %>% select(change)
+      )[2, ] %>% pull(), 1),
+      "%)", sep=""),
+      icon = icon("shopping-cart")
     )
   })
 }

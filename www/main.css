@@ -71,7 +71,8 @@
 
 .small-box .icon-large {
   position: unset !important;
-  color: white
+  color: white;
+  font-size: 50px;
 }
 
 #box1 .small-box {
