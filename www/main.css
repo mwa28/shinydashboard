@@ -94,3 +94,12 @@
   /* background: linear-gradient(300deg, #4caf50 0%, #cddc39 100%) */
   background-color: #4caf50 !important
 }
+
+
+#shiny-tab-wiki  {
+  color : white
+}
+
+#shiny-tab-wiki > h1 {
+  text-align: center;
+}
